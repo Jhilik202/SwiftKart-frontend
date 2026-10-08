@@ -34,6 +34,13 @@
   border: none;
   padding: 0.85rem 1rem;
   font-size: 1.05rem;
+  color: #1f2937;
+  background: #ffffff;
+}
+
+.hero-search input::placeholder {
+  color: #6b7280;
+  opacity: 1;
 }
 
 .hero-search .btn {
