@@ -65,9 +65,11 @@ Add to cart on the product card and details page uses POST /cart/items.
 
 ## Things to know
 
-- **Profile is read-only:** the backend has no endpoint for users to edit their own profile, so the page only shows the account details.
+- **Profile:** users can upload or change their profile picture (JPG, PNG or WebP, up to 2 MB) and change their password. Name and email are still changed by an administrator.
 - **Categories:** the list (electronics, clothing, food, books, other) is fixed in `utils/helpers.js` because the backend has a fixed list and no categories endpoint.
-- **Product images:** products need real image URLs. When a URL is missing or fails to load, a grey "No image" placeholder is shown.
+- **Product images:** admins upload images from the Manage products page (Add image or Change image in each row, or in the product form). Images are stored on Cloudinary by the backend. When a product has no image, or the image fails to load, a "No image" placeholder is shown.
+- **Icons:** `lucide-react`. Every navbar link keeps its text label with an icon beside it.
+- **Vercel:** `vercel.json` sends every route to `index.html`, so refreshing a page such as /products does not give a 404.
 - **Popular products on Home:** the backend cannot sort by rating, so the app takes the newest 20 products and ranks them by rating itself.
 - **Creating an admin:** register normally, then set `role` to `admin` in MongoDB (or use the admin users page once you have one admin).
 

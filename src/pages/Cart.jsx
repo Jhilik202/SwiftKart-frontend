@@ -3,7 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import Loading from '../components/Loading';
 import Message from '../components/Message';
-import { formatPrice, getProductImage, handleImageError } from '../utils/helpers';
+import ProductImage from '../components/ProductImage';
+import EmptyState from '../components/EmptyState';
+import { ShoppingCart } from 'lucide-react';
+import { formatPrice } from '../utils/helpers';
 
 const Cart = () => {
   const { cart, loading, error, refreshCart, updateItem, removeItem, emptyTheCart } = useCart();
@@ -63,13 +66,11 @@ const Cart = () => {
   if (cart.items.length === 0) {
     return (
       <div className="container page">
-        <div className="empty-state">
-          <h2>Your cart is empty</h2>
-          <p>Add a few products and they will show up here.</p>
+        <EmptyState icon={ShoppingCart} title="Your cart is empty" text="Add a few products and they will show up here.">
           <Link to="/products" className="btn btn-primary">
             Browse products
           </Link>
-        </div>
+        </EmptyState>
       </div>
     );
   }
@@ -94,7 +95,7 @@ const Cart = () => {
             return (
               <li key={product._id} className="cart-item">
                 <Link to={`/products/${product._id}`} className="cart-item-image">
-                  <img src={getProductImage(product)} alt={product.name} onError={handleImageError} />
+                  <ProductImage product={product} alt={product.name} width={200} />
                 </Link>
 
                 <div className="cart-item-info">

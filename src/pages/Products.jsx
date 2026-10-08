@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getProducts } from '../api/productApi';
-import ProductGrid from '../components/ProductGrid';
+import ProductGrid, { ProductSkeletons } from '../components/ProductGrid';
+import EmptyState from '../components/EmptyState';
+import { SearchX } from 'lucide-react';
 import Pagination from '../components/Pagination';
-import Loading from '../components/Loading';
 import Message from '../components/Message';
 import { CATEGORIES, capitalize } from '../utils/helpers';
 
@@ -172,20 +173,18 @@ const Products = () => {
         </aside>
 
         <div className="products-results">
-          {loading && <Loading text="Loading products..." />}
+          {loading && <ProductSkeletons count={PAGE_SIZE} />}
 
           {!loading && error && <Message type="error">Unable to load products. {error}</Message>}
 
           {!loading && !error && products.length === 0 && (
-            <div className="empty-state">
-              <h3>No products found</h3>
-              <p>Try a different search or remove some filters.</p>
+            <EmptyState icon={SearchX} title="No products found" text="Try a different search or remove some filters.">
               {hasFilters && (
                 <button className="btn btn-primary" onClick={handleClear}>
                   Clear all filters
                 </button>
               )}
-            </div>
+            </EmptyState>
           )}
 
           {!loading && !error && products.length > 0 && (

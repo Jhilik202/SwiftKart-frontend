@@ -1,6 +1,8 @@
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Loading from './Loading';
+import EmptyState from './EmptyState';
+import { ShieldAlert } from 'lucide-react';
 
 // <ProtectedRoute>                          -> any logged-in user
 // <ProtectedRoute roles={['admin']}>        -> only these roles
@@ -20,13 +22,15 @@ const ProtectedRoute = ({ roles, children }) => {
   if (roles && !roles.includes(role)) {
     return (
       <div className="container page">
-        <div className="empty-state">
-          <h2>You do not have access to this page</h2>
-          <p>Your account role ({role}) cannot open this section.</p>
+        <EmptyState
+          icon={ShieldAlert}
+          title="You do not have access to this page"
+          text={`Your account role (${role}) cannot open this section.`}
+        >
           <Link to="/" className="btn btn-primary">
             Back to home
           </Link>
-        </div>
+        </EmptyState>
       </div>
     );
   }

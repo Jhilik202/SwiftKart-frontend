@@ -5,9 +5,10 @@ import { createReview, deleteReview, getReviews, updateReview } from '../api/rev
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import StarRating, { StarInput } from '../components/StarRating';
+import ProductImage from '../components/ProductImage';
 import Loading from '../components/Loading';
 import Message from '../components/Message';
-import { capitalize, formatDate, formatPrice, getProductImage, handleImageError } from '../utils/helpers';
+import { capitalize, formatDate, formatPrice } from '../utils/helpers';
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -180,7 +181,7 @@ const ProductDetails = () => {
       <div className="details-layout">
         <div className="gallery">
           <div className="gallery-main">
-            <img src={getProductImage(product, activeImage)} alt={product.name} onError={handleImageError} />
+            <ProductImage product={product} index={activeImage} alt={product.name} width={1000} />
           </div>
           {images.length > 1 && (
             <div className="gallery-thumbs">
@@ -192,7 +193,7 @@ const ProductDetails = () => {
                   onClick={() => setActiveImage(index)}
                   aria-label={`Show image ${index + 1}`}
                 >
-                  <img src={getProductImage(product, index)} alt="" onError={handleImageError} />
+                  <ProductImage product={product} index={index} alt="" width={160} />
                 </button>
               ))}
             </div>

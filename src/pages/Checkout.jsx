@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import Loading from '../components/Loading';
 import Message from '../components/Message';
+import EmptyState from '../components/EmptyState';
+import { ShoppingCart } from 'lucide-react';
 import { PAYMENT_METHODS, formatPrice } from '../utils/helpers';
 
 const phonePattern = /^[0-9+\-\s]{7,15}$/;
@@ -70,13 +72,11 @@ const Checkout = () => {
   if (cart.items.length === 0) {
     return (
       <div className="container page">
-        <div className="empty-state">
-          <h2>Nothing to check out</h2>
-          <p>Your cart is empty. Add products first.</p>
+        <EmptyState icon={ShoppingCart} title="Nothing to check out" text="Your cart is empty. Add products first.">
           <Link to="/products" className="btn btn-primary">
             Browse products
           </Link>
-        </div>
+        </EmptyState>
       </div>
     );
   }

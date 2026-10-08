@@ -1,13 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ImagePlus, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { createProduct, deleteProduct, getProducts, updateProduct } from '../api/productApi';
 import { useAuth } from '../context/AuthContext';
 import Loading from '../components/Loading';
 import Message from '../components/Message';
 import Pagination from '../components/Pagination';
-import { CATEGORIES, capitalize, formatPrice } from '../utils/helpers';
+import ProductImage from '../components/ProductImage';
+import EmptyState from '../components/EmptyState';
+import { CATEGORIES, capitalize, checkImageFile, formatPrice } from '../utils/helpers';
 
-const emptyForm = { name: '', description: '', price: '', category: 'electronics', brand: '', images: '', stock: '' };
+const MAX_IMAGE_MB = 5; // same limit as the backend
+const emptyForm = { name: '', description: '', price: '', category: 'electronics', brand: '', stock: '' };
 
 const toForm = (product) => ({
   name: product.name,
@@ -15,25 +19,25 @@ const toForm = (product) => ({
   price: String(product.price),
   category: product.category,
   brand: product.brand || '',
-  images: (product.images || []).join('\n'),
   stock: String(product.stock),
 });
 
-const toPayload = (form) => ({
-  name: form.name.trim(),
-  description: form.description.trim(),
-  price: Number(form.price),
-  category: form.category,
-  brand: form.brand.trim(),
-  images: form.images
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean),
-  stock: Number(form.stock),
-});
+// A FormData is used so the text fields and the image travel in one request.
+// Without an image the backend treats it like a normal update and keeps the current image.
+const buildFormData = (form, imageFile) => {
+  const data = new FormData();
+  data.append('name', form.name.trim());
+  data.append('description', form.description.trim());
+  data.append('price', form.price);
+  data.append('category', form.category);
+  data.append('brand', form.brand.trim());
+  data.append('stock', form.stock);
+  if (imageFile) data.append('image', imageFile);
+  return data;
+};
 
 const AdminProducts = () => {
-  const { isAdmin } = useAuth(); // moderators can add and edit, only admins can delete
+  const { isAdmin } = useAuth(); // only admins can upload images or delete. Moderators can add and edit text.
 
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
@@ -45,10 +49,19 @@ const AdminProducts = () => {
   const [notice, setNotice] = useState('');
 
   const [formOpen, setFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState('');
+  const [editingProduct, setEditingProduct] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const formFileRef = useRef(null);
+
+  // Quick "change image" button in the table
+  const rowFileRef = useRef(null);
+  const [rowTarget, setRowTarget] = useState(null);
+  const [uploadingId, setUploadingId] = useState('');
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -68,29 +81,60 @@ const AdminProducts = () => {
     loadProducts();
   }, [loadProducts]);
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
+  const clearImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+    if (formFileRef.current) formFileRef.current.value = '';
+  };
+
   const openCreate = () => {
-    setEditingId('');
+    setEditingProduct(null);
     setForm(emptyForm);
     setFormError('');
+    clearImage();
     setFormOpen(true);
   };
 
   const openEdit = (product) => {
-    setEditingId(product._id);
+    setEditingProduct(product);
     setForm(toForm(product));
     setFormError('');
+    clearImage();
     setFormOpen(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const closeForm = () => {
     setFormOpen(false);
-    setEditingId('');
+    setEditingProduct(null);
     setFormError('');
+    clearImage();
   };
 
   const handleChange = (event) => {
     setForm({ ...form, [event.target.name]: event.target.value });
+  };
+
+  const handleImageSelect = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const problem = checkImageFile(file, MAX_IMAGE_MB);
+    if (problem) {
+      clearImage();
+      setFormError(problem);
+      return;
+    }
+
+    setFormError('');
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
   };
 
   const handleSubmit = async (event) => {
@@ -109,13 +153,14 @@ const AdminProducts = () => {
     setSaving(true);
 
     try {
-      const payload = toPayload(form);
-      if (editingId) {
-        await updateProduct(editingId, payload);
+      const data = buildFormData(form, isAdmin ? imageFile : null);
+
+      if (editingProduct) {
+        await updateProduct(editingProduct._id, data);
         setNotice('Product updated.');
       } else {
-        await createProduct(payload);
-        setNotice('Product created.');
+        await createProduct(data);
+        setNotice(imageFile ? 'Product created with its image.' : 'Product created.');
         setPage(1);
       }
       closeForm();
@@ -127,8 +172,46 @@ const AdminProducts = () => {
     }
   };
 
+  // Table button: pick a file, upload it straight away for that product
+  const startRowUpload = (product) => {
+    setRowTarget(product);
+    if (rowFileRef.current) {
+      rowFileRef.current.value = '';
+      rowFileRef.current.click();
+    }
+  };
+
+  const handleRowFile = async (event) => {
+    const file = event.target.files[0];
+    const product = rowTarget;
+    if (!file || !product) return;
+
+    setNotice('');
+    setError('');
+
+    const problem = checkImageFile(file, MAX_IMAGE_MB);
+    if (problem) {
+      setError(`${product.name}: ${problem}`);
+      return;
+    }
+
+    setUploadingId(product._id);
+    try {
+      const data = new FormData();
+      data.append('image', file);
+      await updateProduct(product._id, data);
+      setNotice(`Image saved for "${product.name}".`);
+      await loadProducts();
+    } catch (err) {
+      setError(`${product.name}: ${err.message}`);
+    } finally {
+      setUploadingId('');
+      setRowTarget(null);
+    }
+  };
+
   const handleDelete = async (product) => {
-    if (!window.confirm(`Delete "${product.name}"? Its reviews will be deleted too.`)) return;
+    if (!window.confirm(`Delete "${product.name}"? Its reviews and image will be deleted too.`)) return;
 
     setNotice('');
     setError('');
@@ -147,6 +230,8 @@ const AdminProducts = () => {
     setAppliedSearch(search.trim());
   };
 
+  const currentImage = editingProduct && editingProduct.images && editingProduct.images[0];
+
   return (
     <div className="container page">
       <div className="page-header page-header-row">
@@ -158,16 +243,24 @@ const AdminProducts = () => {
         </div>
         {!formOpen && (
           <button className="btn btn-primary" onClick={openCreate}>
+            <Plus size={18} aria-hidden="true" />
             Add product
           </button>
         )}
       </div>
 
       <Message type="success">{notice}</Message>
+      <Message type="error">{error}</Message>
+
+      {isAdmin && (
+        <Message type="info">
+          To add pictures to your existing products, use the Image button in each row of the table below.
+        </Message>
+      )}
 
       {formOpen && (
         <section className="panel">
-          <h2>{editingId ? 'Edit product' : 'Add a product'}</h2>
+          <h2>{editingProduct ? 'Edit product' : 'Add a product'}</h2>
           <Message type="error">{formError}</Message>
 
           <form className="admin-form" onSubmit={handleSubmit}>
@@ -185,7 +278,7 @@ const AdminProducts = () => {
                 <input id="price" name="price" type="number" min="0" step="0.01" value={form.price} onChange={handleChange} required />
               </div>
               <div className="form-group">
-                <label htmlFor="stock">Stock</label>
+                <label htmlFor="stock">Quantity in stock</label>
                 <input id="stock" name="stock" type="number" min="0" step="1" value={form.stock} onChange={handleChange} required />
               </div>
             </div>
@@ -205,21 +298,62 @@ const AdminProducts = () => {
                 <input id="brand" name="brand" value={form.brand} onChange={handleChange} />
               </div>
             </div>
+
             <div className="form-group">
-              <label htmlFor="images">Image URLs (one per line)</label>
-              <textarea id="images" name="images" rows="3" value={form.images} onChange={handleChange} placeholder="https://..." />
+              <label htmlFor="productImage">Product image</label>
+              {isAdmin ? (
+                <div className="image-upload">
+                  <div className="image-upload-preview">
+                    {imagePreview ? (
+                      <img src={imagePreview} alt="Selected product preview" />
+                    ) : currentImage ? (
+                      <ProductImage product={editingProduct} alt="Current product image" width={400} />
+                    ) : (
+                      <div className="img-placeholder">
+                        <ImagePlus size={28} aria-hidden="true" />
+                        <span>No image yet</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="image-upload-controls">
+                    <input
+                      ref={formFileRef}
+                      id="productImage"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleImageSelect}
+                    />
+                    <small className="form-hint">
+                      JPG, PNG or WebP, up to {MAX_IMAGE_MB} MB.
+                      {editingProduct ? ' Leave empty to keep the current image.' : ''}
+                    </small>
+                    {imageFile && (
+                      <button type="button" className="btn btn-outline btn-sm" onClick={clearImage}>
+                        <X size={14} aria-hidden="true" />
+                        Remove selected image
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="form-hint">Only admins can upload product images.</p>
+              )}
             </div>
+
             <div className="form-actions">
               <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Saving...' : editingId ? 'Save changes' : 'Create product'}
+                {saving ? (imageFile ? 'Uploading and saving...' : 'Saving...') : editingProduct ? 'Save changes' : 'Create product'}
               </button>
-              <button type="button" className="btn btn-outline" onClick={closeForm}>
+              <button type="button" className="btn btn-outline" onClick={closeForm} disabled={saving}>
                 Cancel
               </button>
             </div>
           </form>
         </section>
       )}
+
+      {/* Hidden input used by the "Image" buttons in the table */}
+      <input ref={rowFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleRowFile} className="visually-hidden" tabIndex={-1} aria-hidden="true" />
 
       <form className="toolbar" onSubmit={handleSearch}>
         <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products" aria-label="Search products" />
@@ -242,13 +376,9 @@ const AdminProducts = () => {
       </form>
 
       {loading && <Loading text="Loading products..." />}
-      {!loading && error && <Message type="error">{error}</Message>}
 
       {!loading && !error && products.length === 0 && (
-        <div className="empty-state">
-          <h3>No products found</h3>
-          <p>Add your first product with the Add product button.</p>
-        </div>
+        <EmptyState icon={Plus} title="No products found" text="Add your first product with the Add product button." />
       )}
 
       {!loading && products.length > 0 && (
@@ -257,6 +387,7 @@ const AdminProducts = () => {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>Image</th>
                   <th>Name</th>
                   <th>Category</th>
                   <th>Price</th>
@@ -265,26 +396,47 @@ const AdminProducts = () => {
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
-                  <tr key={product._id}>
-                    <td>
-                      <Link to={`/products/${product._id}`}>{product.name}</Link>
-                    </td>
-                    <td>{capitalize(product.category)}</td>
-                    <td>{formatPrice(product.price)}</td>
-                    <td className={product.stock === 0 ? 'text-danger' : ''}>{product.stock}</td>
-                    <td className="table-actions">
-                      <button className="btn btn-outline btn-sm" onClick={() => openEdit(product)}>
-                        Edit
-                      </button>
-                      {isAdmin && (
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(product)}>
-                          Delete
+                {products.map((product) => {
+                  const hasImage = Boolean(product.images && product.images[0]);
+
+                  return (
+                    <tr key={product._id}>
+                      <td>
+                        <div className="admin-thumb">
+                          <ProductImage product={product} alt="" width={120} />
+                        </div>
+                      </td>
+                      <td>
+                        <Link to={`/products/${product._id}`}>{product.name}</Link>
+                      </td>
+                      <td>{capitalize(product.category)}</td>
+                      <td>{formatPrice(product.price)}</td>
+                      <td className={product.stock === 0 ? 'text-danger' : ''}>{product.stock}</td>
+                      <td className="table-actions">
+                        {isAdmin && (
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => startRowUpload(product)}
+                            disabled={uploadingId === product._id}
+                          >
+                            <ImagePlus size={15} aria-hidden="true" />
+                            {uploadingId === product._id ? 'Uploading...' : hasImage ? 'Change image' : 'Add image'}
+                          </button>
+                        )}
+                        <button className="btn btn-outline btn-sm" onClick={() => openEdit(product)}>
+                          <Pencil size={15} aria-hidden="true" />
+                          Edit
                         </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                        {isAdmin && (
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(product)}>
+                            <Trash2 size={15} aria-hidden="true" />
+                            Delete
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { getMyOrders } from '../api/orderApi';
 import Loading from '../components/Loading';
 import Message from '../components/Message';
+import EmptyState from '../components/EmptyState';
+import { PackageSearch } from 'lucide-react';
 import Pagination from '../components/Pagination';
 import { capitalize, formatDate, formatPrice, shortId } from '../utils/helpers';
 
@@ -46,13 +48,11 @@ const Orders = () => {
       {!loading && error && <Message type="error">Unable to load your orders. {error}</Message>}
 
       {!loading && !error && orders.length === 0 && (
-        <div className="empty-state">
-          <h2>No orders yet</h2>
-          <p>Your orders will appear here after you check out.</p>
+        <EmptyState icon={PackageSearch} title="No orders yet" text="Your orders will appear here after you check out.">
           <Link to="/products" className="btn btn-primary">
             Start shopping
           </Link>
-        </div>
+        </EmptyState>
       )}
 
       {!loading && !error && orders.length > 0 && (

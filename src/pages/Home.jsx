@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getProducts } from '../api/productApi';
-import ProductGrid from '../components/ProductGrid';
-import Loading from '../components/Loading';
+import ProductGrid, { ProductSkeletons } from '../components/ProductGrid';
 import Message from '../components/Message';
 import { CATEGORIES, capitalize } from '../utils/helpers';
 
@@ -105,7 +104,7 @@ const Home = () => {
           </Link>
         </div>
 
-        {loading && <Loading text="Loading products..." />}
+        {loading && <ProductSkeletons count={4} />}
         {error && <Message type="error">Unable to load products. {error}</Message>}
         {!loading && !error && featured.length === 0 && (
           <div className="empty-state">

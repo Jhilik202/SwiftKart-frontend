@@ -57,3 +57,24 @@ export const handleImageError = (event) => {
     event.currentTarget.src = PLACEHOLDER_IMAGE;
   }
 };
+
+// Cloudinary can resize and compress images on the fly. This asks for a smaller copy
+// (for example 600px wide) so cards and thumbnails load fast. Other URLs are left unchanged.
+export const optimizeImage = (url, width = 800) => {
+  const marker = '/image/upload/';
+  if (typeof url !== 'string' || !url.includes('res.cloudinary.com') || !url.includes(marker)) {
+    return url;
+  }
+  return url.replace(marker, `${marker}w_${width},c_limit,q_auto,f_auto/`);
+};
+
+// Same limits as the backend (it checks again, this only gives faster feedback)
+export const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+// Returns an error message, or '' when the file is fine
+export const checkImageFile = (file, maxMb) => {
+  if (!file) return 'Choose an image first.';
+  if (!IMAGE_TYPES.includes(file.type)) return 'Only JPG, PNG or WebP images are allowed.';
+  if (file.size > maxMb * 1024 * 1024) return `The image is too large. The maximum size is ${maxMb} MB.`;
+  return '';
+};

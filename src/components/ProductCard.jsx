@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import StarRating from './StarRating';
-import { capitalize, formatPrice, getProductImage, handleImageError } from '../utils/helpers';
+import ProductImage from './ProductImage';
+import { capitalize, formatPrice } from '../utils/helpers';
 
 const ProductCard = ({ product }) => {
   const { isAuthenticated } = useAuth();
@@ -40,7 +41,7 @@ const ProductCard = ({ product }) => {
   return (
     <article className="product-card">
       <Link to={`/products/${product._id}`} className="product-card-image">
-        <img src={getProductImage(product)} alt={product.name} loading="lazy" onError={handleImageError} />
+        <ProductImage product={product} alt={product.name} width={600} />
       </Link>
 
       <div className="product-card-body">

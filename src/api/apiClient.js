@@ -38,7 +38,10 @@ const request = async (path, { method = 'GET', body, params, auth = true } = {})
   const url = `${API_URL}${path}${buildQueryString(params)}`;
 
   const headers = {};
-  if (body !== undefined) {
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
+  // JSON for normal requests. For file uploads (FormData) the browser sets the multipart header itself.
+  if (body !== undefined && !isFormData) {
     headers['Content-Type'] = 'application/json';
   }
 
@@ -52,7 +55,7 @@ const request = async (path, { method = 'GET', body, params, auth = true } = {})
     response = await fetch(url, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     });
   } catch (error) {
     throw new ApiError('Cannot reach the server. Check that the backend is running and VITE_API_URL is correct.', 0);
