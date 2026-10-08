@@ -38,7 +38,7 @@ const Navbar = () => {
     <header className="navbar">
       <div className="container navbar-inner">
         <Link to="/" className="navbar-logo" onClick={closeMenu}>
-          ShopHub
+          SwiftKart
         </Link>
 
         <div className="navbar-right">

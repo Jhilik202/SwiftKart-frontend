@@ -4,7 +4,7 @@ const Footer = () => (
   <footer className="footer">
     <div className="container footer-inner">
       <div>
-        <strong className="footer-logo">ShopHub</strong>
+        <strong className="footer-logo">SwiftKart</strong>
         <p>A college MERN stack project: React frontend, Express and MongoDB backend.</p>
       </div>
       <div className="footer-links">
