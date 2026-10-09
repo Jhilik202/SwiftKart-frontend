@@ -5,7 +5,7 @@ const Footer = () => (
     <div className="container footer-inner">
       <div>
         <strong className="footer-logo">SwiftKart</strong>
-        <p>A college MERN stack project: React frontend, Express and MongoDB backend.</p>
+        <p>Discover quality products at great prices! . Enjoy a simple, convenient and seamless shopping experience with SwiftKart.  </p>
       </div>
       <div className="footer-links">
         <Link to="/products">Products</Link>
